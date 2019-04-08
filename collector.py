@@ -39,13 +39,13 @@ with open('directory.json',encoding='utf-8') as f:
         try:
             url = data[spacename]
         except Exception as e:
-            logger.error(spacename + ": " + e)
+            logger.error(spacename + ": " + str(e))
             continue
 
         try:
             r = json.loads(requests.get(url=url).text)
         except Exception as e:
-            logger.error(spacename + ": " + e)
+            logger.error(spacename + ": " + str(e))
             continue
 
         try:
@@ -59,4 +59,4 @@ with open('directory.json',encoding='utf-8') as f:
                     }
                     print(p)
         except Exception as e:
-            logger.error(spacename + ": " + e)
+            logger.error(spacename + ": " + str(e))
