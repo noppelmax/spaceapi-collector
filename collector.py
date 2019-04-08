@@ -35,6 +35,7 @@ logger.addHandler(ch)
 
 logger.info("Running version " + VERSION)
 
+points = []
 
 with open('directory.json',encoding='utf-8') as f:
     data = json.load(f)
@@ -61,7 +62,10 @@ with open('directory.json',encoding='utf-8') as f:
                         }
                     }
                     print(p)
-                    if USE_INFLUX:
-                        client.write_points([p])
+                    points.append(p)
+
         except Exception as e:
             logger.error(spacename + ": " + str(e))
+
+if USE_INFLUX:
+    client.write_points(points)
