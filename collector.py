@@ -9,10 +9,13 @@ import requests
 from influxdb import InfluxDBClient
 
 DBNAME = "SPACEAPI_STATS"
+USE_INFLUX = True
 
-#client = InfluxDBClient("localhost",8086,"root","root",DBNAME)
-#client.create_database(DBNAME)
-#client.switch_database(DBNAME)
+
+if USE_INFLUX:
+    client = InfluxDBClient("localhost",8086,"root","root",DBNAME)
+    client.create_database(DBNAME)
+    client.switch_database(DBNAME)
 
 VERSION_MAJOR = 0
 VERSION_MINOR = 1
@@ -58,5 +61,7 @@ with open('directory.json',encoding='utf-8') as f:
                         }
                     }
                     print(p)
+                    if USE_INFLUX:
+                        client.write_points([p])
         except Exception as e:
             logger.error(spacename + ": " + str(e))
