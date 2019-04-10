@@ -7,6 +7,7 @@ import configparser
 import requests
 
 from influxdb import InfluxDBClient
+from multiprocessing import Process, Manager
 
 DBNAME = "SPACEAPI_STATS"
 USE_INFLUX = True
@@ -18,7 +19,7 @@ if USE_INFLUX:
     client.switch_database(DBNAME)
 
 VERSION_MAJOR = 0
-VERSION_MINOR = 1
+VERSION_MINOR = 2
 VERSION_PATCH = 0
 VERSION = "v" + str(VERSION_MAJOR) + "." + str(VERSION_MINOR) + "." + str(VERSION_PATCH)
 
@@ -35,37 +36,54 @@ logger.addHandler(ch)
 
 logger.info("Running version " + VERSION)
 
-points = []
 
-with open('directory.json',encoding='utf-8') as f:
-    data = json.load(f)
-    for spacename in data:
-        try:
-            url = data[spacename]
-        except Exception as e:
-            logger.error(spacename + ": " + str(e))
-            continue
+def loadSpaceAPI(spacename,points):
 
-        try:
-            r = json.loads(requests.get(url=url).text)
-        except Exception as e:
-            logger.error(spacename + ": " + str(e))
-            continue
-
-        try:
-            if r["api"] == "0.13":
-                if r["state"]:
-                    p = {
-                        "measurement": spacename,
-                        "fields": {
-                            "doorstate": r["state"]["open"]
-                        }
+    try:
+        url = data[spacename]
+    except Exception as e:
+        logger.error(spacename + ": " + str(e))
+        return
+    
+    try:
+        r = json.loads(requests.get(url=url,timeout=1).text)
+    except Exception as e:
+        logger.error(spacename + ": " + str(e))
+        return
+    
+    try:
+        if r["api"] == "0.13":
+            if r["state"] and r["state"]["open"]:
+                p = {
+                    "measurement": spacename,
+                    "fields": {
+                        "doorstate": r["state"]["open"]
                     }
-                    print(p)
-                    points.append(p)
+                }
+                
+                print(p)
+                points.append(p)
+    except Exception as e:
+        logger.error(spacename + ": " + str(e))
 
-        except Exception as e:
-            logger.error(spacename + ": " + str(e))
 
-if USE_INFLUX:
-    client.write_points(points)
+if __name__ == '__main__':
+    manager = Manager()
+    points = manager.list()
+    processes = []
+    with open('directory.json',encoding='utf-8') as f:
+        data = json.load(f)
+        for spacename in data:
+            p = Process(target=loadSpaceAPI, args=(spacename,points))
+            processes.append(p)
+            p.start()
+
+    for p in processes:
+        p.join()
+
+    logger.info("JOINED")
+
+    
+    if USE_INFLUX:
+        logger.info("Write to INFLUX" + str(points))
+        client.write_points(points)
